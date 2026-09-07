@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:localbooru/components/builders.dart';
 import 'package:localbooru/utils/compressor.dart';
 import 'package:localbooru/utils/misc.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 
 class FileInfo extends StatefulWidget {
     const FileInfo(this.file, {super.key, this.onCompressed});
@@ -36,17 +37,17 @@ class _FileInfoState extends State<FileInfo> {
                                         child: Builder(
                                             builder: (_) {                                        
                                                 if(isCompressing) return const CircularProgressIndicator();
-                                                return OutlinedButton.icon(
-                                                    icon: const Icon(Icons.compress),
+                                                return ClassicBevelButton(
+                                                    label: 'Compress',
+                                                    leading: const ClassicActionIcon('compress', size: 17),
                                                     onPressed: () async {
                                                         if(widget.onCompressed == null) return;
                                                         setState(() => isCompressing = true);
                                                         final compressed = await compress(widget.file);
 
                                                         widget.onCompressed!(compressed);
-                                                        setState(() => isCompressing = false);
+                                                        if (mounted) setState(() => isCompressing = false);
                                                     },
-                                                    label: const Text("Compress")
                                                 );
                                             },
                                         )

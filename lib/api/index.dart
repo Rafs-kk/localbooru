@@ -24,15 +24,14 @@ Future<Booru> getCurrentBooru() async {
         debugPrint("Loaded booruPath with $booruPath");
         if (booruPath is! String) throw "Invalid or unset booru on settings";
 
-        final String repoinfoPath = p.join(booruPath, "repoinfo.json");
-
-        Map<String, dynamic> raw = jsonDecode(await File(repoinfoPath).readAsString());
+        final Booru candidate = Booru(booruPath);
+        final Map<String, dynamic> raw = await candidate.getRawInfo();
         if(!isValidBooruModel(raw)) {
             debugPrint("Booru is not valid. Trying to fix it");
-            writeSettings(booruPath, rebase(raw));
+            await writeSettings(booruPath, rebase(raw));
         }
 
-        currentBooru = Booru(booruPath);
+        currentBooru = candidate;
     }
 
     return currentBooru!;
@@ -41,13 +40,13 @@ Future<Booru> getCurrentBooru() async {
 Future<void> setBooru(String path) async {
     final prefs = await SharedPreferences.getInstance();
     currentBooru = null;
-    prefs.setString("booruPath", path);
+    await prefs.setString("booruPath", path);
     booruUpdateListener.update();
 }
 
 Future<void> createDefaultBooruModel(String folderPath) async {
     File repoinfoFile = await File(p.join(folderPath, "repoinfo.json")).create(recursive: true);
-    await repoinfoFile.writeAsString(jsonEncode(defaultFileInfoJson));
+    await repoinfoFile.writeAsString(jsonEncode(defaultFileInfoJson), flush: true);
     await Directory(p.join(folderPath, "files")).create(recursive: true);
     await Directory(p.join(folderPath, "thumbnails")).create(recursive: true);
 }

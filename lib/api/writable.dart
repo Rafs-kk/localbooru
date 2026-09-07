@@ -1,8 +1,69 @@
 part of localbooru_api;
 
-Future writeSettings(String path, Map raw, {bool notify = true}) async {
-    await File(p.join(path, "repoinfo.json")).writeAsString(const JsonEncoder.withIndent('  ').convert(raw));
-    if(notify) booruUpdateListener.update();
+Future<void> _settingsWriteChain = Future<void>.value();
+
+Future<void> _writeSettingsAtomically(String path, Map raw) async {
+    final String targetPath = p.join(path, "repoinfo.json");
+    final File target = File(targetPath);
+    final File backup = File("$targetPath.bak");
+    final String encoded = const JsonEncoder.withIndent('  ').convert(raw);
+    final File temp = File(
+        "$targetPath.tmp-${DateTime.now().microsecondsSinceEpoch}-${encoded.hashCode.abs()}",
+    );
+
+    // Preserve the latest valid repository snapshot. This gives getRawInfo() a
+    // recovery source if Windows, the process, or storage is interrupted.
+    if (await target.exists()) {
+        try {
+            final String current = await target.readAsString();
+            if (current.trim().isNotEmpty) {
+                final dynamic parsed = jsonDecode(current);
+                if (parsed is Map) await target.copy(backup.path);
+            }
+        } catch (_) {
+            // Never overwrite a known-good backup with a malformed target.
+        }
+    }
+
+    try {
+        await temp.writeAsString(encoded, flush: true);
+
+        // Validate the complete temporary file before it can replace the live
+        // repository metadata.
+        final dynamic parsedTemp = jsonDecode(await temp.readAsString());
+        if (parsedTemp is! Map) {
+            throw const FormatException('Repository metadata must be a JSON object');
+        }
+
+        // rename() replaces an existing file on supported platforms. Readers
+        // therefore see either the old complete JSON or the new complete JSON,
+        // never the zero-length/truncated state produced by writeAsString() on
+        // the live file itself.
+        await temp.rename(targetPath);
+    } finally {
+        if (await temp.exists()) {
+            try {
+                await temp.delete();
+            } catch (_) {}
+        }
+    }
+}
+
+Future<void> writeSettings(String path, Map raw, {bool notify = true}) async {
+    // Serialize metadata writes. Several workflows update specific tags and
+    // file metadata close together; queuing avoids overlapping replacements.
+    final Future<void> operation = _settingsWriteChain.then(
+        (_) => _writeSettingsAtomically(path, raw),
+        onError: (_, __) => _writeSettingsAtomically(path, raw),
+    );
+
+    _settingsWriteChain = operation.catchError((Object error, StackTrace stack) {
+        debugPrint('[RepositoryWrite] $error');
+        debugPrintStack(stackTrace: stack);
+    });
+
+    await operation;
+    if (notify) booruUpdateListener.update();
 }
 
 Map<String, dynamic> rebase(Map<String, dynamic> raw) {
@@ -68,19 +129,31 @@ Future<BooruImage> insertImage(PresetImage preset) async {
         copiedFile = await preset.image!.copy(p.join(booru.path, "files", p.basename(preset.image!.path)));
     }
 
-    // step 2: add tag types
+    // step 2: merge tags into the repository snapshot. Older code wrote
+    // repoinfo.json once per specific tag type and notified the whole UI after
+    // every write. That created avoidable I/O/notification storms. Keep the
+    // same data model, but persist the complete image + tag update once.
     if(preset.tags == null) throw "Preset does not contain tags";
-    Set<String> tagSet = {};
+    final Set<String> tagSet = {};
+    final Map<String, List<String>> specificTagsToMerge = {};
     for (MapEntry<String, List<String>> tagType in preset.tags!.entries) {
-        if(tagType.value.isNotEmpty) {
-            tagSet.addAll(tagType.value); //you can add values to sets
-            if(tagType.key != "generic") await addSpecificTags(tagType.value, type: tagType.key);
-        }
+        final values = tagType.value.where((tag) => tag.trim().isNotEmpty).toSet().toList();
+        if(values.isEmpty) continue;
+        tagSet.addAll(values);
+        if(tagType.key != "generic") specificTagsToMerge[tagType.key] = values;
     }
 
     // step 3: adding to json
-    // obtain raw AFTER adding specific tags
     Map raw = await booru.getRawInfo();
+    final Map<String, dynamic> rawSpecificTags = raw["specificTags"] is Map
+        ? Map<String, dynamic>.from(raw["specificTags"] as Map)
+        : <String, dynamic>{};
+    for (final entry in specificTagsToMerge.entries) {
+        final existing = List<String>.from(rawSpecificTags[entry.key] ?? const <String>[]);
+        rawSpecificTags[entry.key] = <String>{...existing, ...entry.value}.toList();
+    }
+    raw["specificTags"] = rawSpecificTags;
+
     List files = raw["files"];
 
     // determine id

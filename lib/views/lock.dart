@@ -8,6 +8,7 @@ import 'package:localbooru/utils/constants.dart';
 import 'package:localbooru/utils/listeners.dart';
 import 'package:local_auth/error_codes.dart' as auth_error;
 import 'package:localbooru/utils/platform_tools.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -134,7 +135,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver{
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 
                                 children: [
-                                    Icon(Icons.lock, size: 96, color: Theme.of(context).colorScheme.primary,),
+                                    const ClassicSpriteIcon(index: 23, size: 64),
                                     const SizedBox(height: 16,),
                                     const Text("LocalBooru won't display the contents due to the user having enabled authentication hideout. Please click on the button below and verify your identity to use this app",
                                         textAlign: TextAlign.center,
@@ -142,7 +143,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver{
                                     const SizedBox(height: 64,),
                                     FilledButton.icon(
                                         label: Text(Random().nextInt(200) == 69 ? "unlok" : "Unlock"),
-                                        icon: const Icon(Icons.key),
+                                        icon: const ClassicSpriteIcon(index: 23, size: 20),
                                         onPressed: authToUnlock,
                                     )
                                 ]

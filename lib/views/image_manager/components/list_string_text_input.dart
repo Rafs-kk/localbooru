@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 
 class ListStringTextInput extends StatefulWidget {
-    const ListStringTextInput({super.key, required this.onChanged, this.defaultValue = const [], this.canBeEmpty = false, this.formValidator, this.addButton = const Text("Add")});
+    const ListStringTextInput({super.key, required this.onChanged, this.defaultValue = const [], this.canBeEmpty = false, this.formValidator, this.addButtonLabel = "Add"});
 
     final Function(List<String>) onChanged;
     final List<String> defaultValue;
     final FormFieldValidator<String>? formValidator;
     final bool canBeEmpty;
-    final Widget addButton;
+    final String addButtonLabel;
 
     @override
     State<ListStringTextInput> createState() => _ListStringTextInputState();
@@ -62,7 +63,7 @@ class _ListStringTextInputState extends State<ListStringTextInput> {
                                         _currentValue.removeAt(index);
                                         _editControllers.removeAt(index);
                                         _uploadChanges();
-                                    }), icon: const Icon(Icons.remove))) : null,
+                                    }), icon: const ClassicActionIcon('delete', size: 16))) : null,
                                     validator: widget.formValidator,
                                     onChanged: (value) {
                                         setState(() => _currentValue[index] = value);
@@ -74,20 +75,23 @@ class _ListStringTextInputState extends State<ListStringTextInput> {
                         ),
                     )
                 ),
-                const SizedBox(height: 16),
-                ListTile(
-                    title: widget.addButton,
-                    leading: const Icon(Icons.add),
-                    onTap: () async {
+                const SizedBox(height: 12),
+                ClassicBevelButton(
+                    label: widget.addButtonLabel,
+                    leading: const ClassicCustomIcon('related_source_add', size: 16),
+                    onPressed: () {
                         setState(() => _currentValue.add(""));
                         _uploadChanges();
-                        Future.delayed(const Duration(milliseconds: 10), () => _scrollController.animateTo(
-                            _scrollController.position.maxScrollExtent,
-                            duration: const Duration(milliseconds: 150),
-                            curve: Curves.fastOutSlowIn,
-                        ));
-                    }, 
-                )
+                        Future.delayed(const Duration(milliseconds: 10), () {
+                            if (!_scrollController.hasClients) return;
+                            _scrollController.animateTo(
+                                _scrollController.position.maxScrollExtent,
+                                duration: const Duration(milliseconds: 150),
+                                curve: Curves.fastOutSlowIn,
+                            );
+                        });
+                    },
+                ),
             ],
         );
     }

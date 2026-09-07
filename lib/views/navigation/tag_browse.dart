@@ -9,6 +9,7 @@ import 'package:localbooru/api/index.dart';
 import 'package:localbooru/components/context_menu.dart';
 import 'package:localbooru/components/image_grid_display.dart';
 import 'package:localbooru/components/search_tag.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 import 'package:localbooru/utils/constants.dart';
 import 'package:localbooru/utils/listeners.dart';
 import 'package:localbooru/utils/platform_tools.dart';
@@ -56,6 +57,16 @@ class _GalleryViewerState extends State<GalleryViewer> {
     }
 
     @override
+    void didUpdateWidget(covariant GalleryViewer oldWidget) {
+        super.didUpdateWidget(oldWidget);
+        if (oldWidget.searcher != widget.searcher || oldWidget.index != widget.index) {
+            _currentIndex = widget.index;
+            _selectedImages = widget.selectedImages ?? [];
+            _resultObtainFuture = _obtainResults();
+        }
+    }
+
+    @override
     void dispose() {
         booruUpdateListener.removeListener(updateImages);
         super.dispose();
@@ -81,26 +92,34 @@ class _GalleryViewerState extends State<GalleryViewer> {
 
     List<PopupMenuEntry> singleContextMenuItems(BooruImage image) => [
         PopupMenuItem(
-            child: ListTile(
-                title: const Text("Select"),
-                trailing: Icon(_selectedImages.contains(image.id) ? Icons.check_box : Icons.check_box_outline_blank),
+            height: 36,
+            child: Row(
+                children: [
+                    const ClassicActionIcon('all', size: 17),
+                    const SizedBox(width: 7),
+                    const Expanded(child: Text("Select")),
+                    Text(
+                        _selectedImages.contains(image.id) ? '✓' : '',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ClassicPalette.link),
+                    ),
+                ],
             ),
             onTap: () => toggleImageSelection(image.id),
         ),
-        const PopupMenuDivider(),
+        const PopupMenuDivider(height: 1),
         ...imageShareItems(image),
         if(widget.additionalMenuOptions != null) ...[
-            const PopupMenuDivider(),
+            const PopupMenuDivider(height: 1),
             ...widget.additionalMenuOptions!
         ],
-        const PopupMenuDivider(),
+        const PopupMenuDivider(height: 1),
         ...imageManagementItems(image, context: context),
     ];
 
     List<PopupMenuEntry> multipleContextMenuItems(List<BooruImage> images) => [
         if(widget.additionalMenuOptions != null) ...[
             ...widget.additionalMenuOptions!,
-            const PopupMenuDivider(),
+            const PopupMenuDivider(height: 1),
         ],
         ...multipleImageManagementItems(images, context: context),
     ];
@@ -130,11 +149,14 @@ class _GalleryViewerState extends State<GalleryViewer> {
         final List<Widget> actions = [
             ...(widget.actions ?? []),
             PopupMenuButton(
+                tooltip: 'Gallery options',
+                icon: const ClassicCustomIcon('menu', size: 18),
+                padding: EdgeInsets.zero,
                 itemBuilder: (context) {
                     return [
                         ...booruItems(),
                         if(widget.additionalMenuOptions != null) ...[
-                            const PopupMenuDivider(),
+                            const PopupMenuDivider(height: 1),
                             ...widget.additionalMenuOptions!
                         ]
                     ];
@@ -162,19 +184,15 @@ class _GalleryViewerState extends State<GalleryViewer> {
                                                     floating: true,
                                                     snap: true,
                                                     pinned: isDesktop(),
-                                                    forceMaterialTransparency: orientation == Orientation.landscape,
+                                                    forceMaterialTransparency: false,
+                                                    backgroundColor: ClassicPalette.panelAlt,
+                                                    elevation: 0,
                                                     titleSpacing: 0,
-                                                    automaticallyImplyLeading: widget.displayBackButton,
-                                                    actions: orientation != Orientation.landscape ? actions : [Padding(
+                                                    automaticallyImplyLeading: false,
+                                                    leading: widget.displayBackButton ? const ClassicSafeBackButton(fallback: '/search') : null,
+                                                    actions: [Padding(
                                                         padding: const EdgeInsets.only(right: 8),
-                                                        child: Wrap(
-                                                            direction: Axis.horizontal,
-                                                            spacing: 8,
-                                                            children: actions.map((e) => CircleAvatar(
-                                                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-                                                                child: e,
-                                                            )).toList(),
-                                                        ),
+                                                        child: Row(mainAxisSize: MainAxisSize.min, children: actions),
                                                     )],
                                                     title: widget.headerDisplay != null ? widget.headerDisplay!(context, orientation) : null,
                                                 )
@@ -185,11 +203,15 @@ class _GalleryViewerState extends State<GalleryViewer> {
                                                     pinned: true,
                                                     // forceElevated: true,
                                                     automaticallyImplyLeading: false,
-                                                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                                    leading: CloseButton(onPressed: () => setState(() => _selectedImages = []),),
+                                                    backgroundColor: ClassicPalette.selection,
+                                                    leading: IconButton(
+                                                        tooltip: 'Clear selection',
+                                                        onPressed: () => setState(() => _selectedImages = []),
+                                                        icon: const ClassicCustomIcon('clear_selection', size: 16),
+                                                    ),
                                                     actions: [
                                                         IconButton(
-                                                            icon: const Icon(Icons.edit),
+                                                            icon: const ClassicActionIcon('edit', size: 18),
                                                             onPressed: () async {
                                                                 final sendable = PresetListManageImageSendable(await Future.wait(_selectedImages.map((e) => PresetImage.fromExistingImage((snapshot.data!["images"] as List<BooruImage>).firstWhere((image) => image.id == e)))));
                                                                 if(context.mounted) {
@@ -198,7 +220,11 @@ class _GalleryViewerState extends State<GalleryViewer> {
                                                                 }
                                                             },
                                                         ),
-                                                        PopupMenuButton(itemBuilder: (context) {
+                                                        PopupMenuButton(
+                                                            tooltip: 'Selected deviation actions',
+                                                            icon: const ClassicCustomIcon('image_actions', size: 18),
+                                                            padding: EdgeInsets.zero,
+                                                            itemBuilder: (context) {
                                                             if(_selectedImages.length == 1) return singleContextMenuItems(snapshot.data!["images"].firstWhere((element) => element.id == _selectedImages[0]));
                                                             else if(_selectedImages.length > 1) return multipleContextMenuItems(snapshot.data!["images"].where((element) => _selectedImages.contains(element.id)).toList());
                                                             return [];
@@ -208,9 +234,11 @@ class _GalleryViewerState extends State<GalleryViewer> {
                                                 ),
                                         ),
                                         SliverToBoxAdapter(child: SizedBox(key:scrollToTop, height: 0.0)),
-                                        if (pages == 0) const SliverFillRemaining(child: Center(child: Text("nothing to see here!")))
+                                        if (pages == 0) const SliverFillRemaining(child: Center(child: Text('No deviations found.')))
                                         else ...[
-                                            SliverRepoGrid(
+                                            SliverPadding(
+                                                padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+                                                sliver: SliverRepoGrid(
                                                 key: ValueKey("$_currentIndex"),
                                                 images: snapshot.data!["images"],
                                                 onPressed: (image) {
@@ -223,6 +251,7 @@ class _GalleryViewerState extends State<GalleryViewer> {
                                                 onLongPress: (image) => toggleImageSelection(image.id),
                                                 selectedElements: _selectedImages,
                                                 isSelection: isInSelection(),
+                                                ),
                                             ),
                                             SliverToBoxAdapter(child: PageDisplay(
                                                 currentPage: _currentIndex,
@@ -383,22 +412,29 @@ class _SearchBarOnGridListState extends State<SearchBarOnGridList> {
     }
 
     @override
+    void didUpdateWidget(covariant SearchBarOnGridList oldWidget) {
+        super.didUpdateWidget(oldWidget);
+        if (oldWidget.initialText != widget.initialText && _searchController.text != widget.initialText) {
+            _searchController.text = widget.initialText;
+            _searchController.selection = TextSelection.collapsed(offset: _searchController.text.length);
+        }
+    }
+
+    @override
     Widget build(BuildContext context) {
         return Container(
-            padding: widget.desktopDisplay ? const EdgeInsets.all(16.0) : null,
-            constraints: widget.desktopDisplay ? const BoxConstraints(maxWidth: 560, maxHeight: 74) : null,
+            padding: widget.desktopDisplay ? const EdgeInsets.symmetric(horizontal: 12, vertical: 7) : null,
+            constraints: widget.desktopDisplay ? const BoxConstraints(maxWidth: 660, maxHeight: 48) : null,
             child: SearchTagBox(
                 onSearch: (text) => widget.onSearch(text),
                 controller: _searchController,
-                actions: !widget.desktopDisplay ? [] : [IconButton(onPressed: () => widget.onSearch(_searchController.text), icon: const Icon(Icons.search))],
-                leading: const Padding(
-                    padding: EdgeInsets.only(right: 12.0),
-                    child: BackButton(),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 8).add(const EdgeInsets.only(bottom: 2)),
-                backgroundColor: !widget.desktopDisplay ? Colors.transparent : null,
+                actions: !widget.desktopDisplay ? [] : null,
+                leading: widget.desktopDisplay ? null : const ClassicSafeBackButton(fallback: '/search'),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                backgroundColor: widget.desktopDisplay ? const Color(0xFFF5F8F3) : Colors.transparent,
                 elevation: !widget.desktopDisplay ? 0 : null,
-                hint: "Search",
+                hint: "Search deviations...",
+                classicStyle: widget.desktopDisplay,
             ),
         );
     }

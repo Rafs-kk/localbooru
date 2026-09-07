@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:localbooru/utils/constants.dart';
 import 'package:localbooru/api/preset/index.dart';
 import 'package:localbooru/views/image_manager/shell.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
@@ -52,7 +53,7 @@ class _AddImageDropRegionState extends State<AddImageDropRegion> {
                                                         crossAxisAlignment: WrapCrossAlignment.center,
                                                         spacing: 48,
                                                         children: [
-                                                            Icon(Icons.add, size: 96,),
+                                                            ClassicCustomIcon('add_image', size: 72),
                                                             Text("Drag to add",style: TextStyle(fontSize: 36, color: Colors.white))
                                                         ],
                                                     ),

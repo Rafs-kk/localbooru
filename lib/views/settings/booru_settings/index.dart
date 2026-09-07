@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:localbooru/api/index.dart';
-import 'package:localbooru/components/headers.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
+import 'package:localbooru/views/settings/index.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher_string.dart';
@@ -24,9 +24,25 @@ class _BooruSettingsState extends State<BooruSettings> {
 
     void setHideMedia() {
         _hideMedia = Future.wait([
-            File(p.join(widget.booru.path, "files", ".nomedia")).exists(),
-            File(p.join(widget.booru.path, "thumbnails", ".nomedia")).exists()
+            File(p.join(widget.booru.path, 'files', '.nomedia')).exists(),
+            File(p.join(widget.booru.path, 'thumbnails', '.nomedia')).exists(),
         ]);
+    }
+
+    Future<void> _changeHideMedia(bool value) async {
+        final nomediaFiles = File(p.join(widget.booru.path, 'files', '.nomedia'));
+        final nomediaThumbnails = File(p.join(widget.booru.path, 'thumbnails', '.nomedia'));
+
+        if (value) {
+            await nomediaFiles.create();
+            await nomediaThumbnails.create();
+        } else {
+            if (await nomediaFiles.exists()) await nomediaFiles.delete();
+            if (await nomediaThumbnails.exists()) await nomediaThumbnails.delete();
+        }
+
+        if (!mounted) return;
+        setState(setHideMedia);
     }
 
     @override
@@ -38,65 +54,141 @@ class _BooruSettingsState extends State<BooruSettings> {
     @override
     Widget build(BuildContext context) {
         return ListView(
+            padding: EdgeInsets.zero,
             children: [
-                const SmallHeader("Elements"),
-                ListTile(
-                    title: const Text("Tag types"),
-                    subtitle: const Text("Remove or create tag types"),
-                    leading: const Icon(Icons.label),
-                    onTap: () => context.push("/settings/booru/tag_types"),
-                ),
-                ListTile(
-                    title: const Text("Collections"),
-                    subtitle: const Text("Manage existing collections"),
-                    leading: const Icon(Icons.photo_library),
-                    onTap: () => context.push("/settings/booru/collections"),
-                ),
-                const SmallHeader("Other"),
-                ListTile(
-                    title: const Text("Rebase"),
-                    subtitle: const Text("Reconstruct certain elements from the booru. Useful if you have some weird issue with it"),
-                    leading: const Icon(Icons.refresh),
-                    onTap: () async {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Rebasing...")));
-                        final raw = await widget.booru.rebaseRaw();
-                        await writeSettings(widget.booru.path, raw);
-                        if (context.mounted) {
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();    
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Rebased")));
-                        }
-                    },
-                ),
-                FutureBuilder(
-                    future: _hideMedia,
-                    builder: (context, snapshot) => SwitchListTile(
-                        title: const Text("Hide images from gallery"),
-                        secondary: const Icon(Icons.hide_image_outlined),
-                        value: snapshot.hasData ? snapshot.data!.every((e) => e == true) : false,
-                        onChanged: snapshot.hasData ? (value) async {
-                            final File nomediaFiles = File(p.join(widget.booru.path, "files", ".nomedia"));
-                            final File nomediaThumbnails = File(p.join(widget.booru.path, "thumbnails", ".nomedia"));
-                            if(value) {
-                                await nomediaFiles.create();
-                                await nomediaThumbnails.create();
-                            } else {
-                                await nomediaFiles.delete();
-                                await nomediaThumbnails.delete();
-                            }
-                            setState(setHideMedia);
-                        } : null
+                ClassicPanel(
+                    title: 'Current booru',
+                    headerIcon: const ClassicCustomIcon('booru_settings', size: 19),
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                            const Text(
+                                'Collection-specific settings',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                                'Manage tag classifications, collections and maintenance options for the currently open LocalBooru collection.',
+                                style: TextStyle(fontSize: 11.5, height: 1.35, color: ClassicPalette.muted),
+                            ),
+                            const SizedBox(height: 10),
+                            Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                                decoration: BoxDecoration(
+                                    color: const Color(0xFFDCE7D8),
+                                    border: Border.all(color: ClassicPalette.border),
+                                ),
+                                child: Text.rich(
+                                    TextSpan(
+                                        style: const TextStyle(fontSize: 11, color: ClassicPalette.ink),
+                                        children: [
+                                            const TextSpan(text: 'Current booru path: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                                            TextSpan(text: widget.booru.path),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ],
                     ),
                 ),
-                ListTile(
-                    title: const Text("Syncing"),
-                    subtitle: const Text("This program does not offer syncing capabilities out of the box, but if you want to sync your computer storage, we recommend using Syncthing"),
-                    leading: SvgPicture.asset("assets/syncthing.svg", width: 24, height: 24, color: Theme.of(context).textTheme.labelSmall?.color,),
-                    trailing: const Icon(Icons.open_in_new),
-                    onTap: () => launchUrlString("https://syncthing.net/"),
+                const SizedBox(height: 12),
+                ClassicPanel(
+                    title: 'Elements',
+                    headerIcon: const ClassicSpriteIcon(index: 45, size: 19),
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                        children: [
+                            ClassicSettingsOptionRow(
+                                leading: const ClassicSpriteIcon(index: 45, size: 22),
+                                title: 'Tag types',
+                                subtitle: 'Remove or create tag types',
+                                onTap: () => context.go('/settings/booru/tag_types'),
+                            ),
+                            const Divider(height: 1, color: ClassicPalette.border),
+                            ClassicSettingsOptionRow(
+                                leading: const ClassicSpriteIcon(index: 28, size: 22),
+                                title: 'Collections',
+                                subtitle: 'Manage existing collections',
+                                onTap: () => context.go('/settings/booru/collections'),
+                            ),
+                        ],
+                    ),
                 ),
-                ListTile(
-                    subtitle: Text("Current booru path: ${widget.booru.path}")
+                const SizedBox(height: 12),
+                ClassicPanel(
+                    title: 'Maintenance',
+                    headerIcon: const ClassicSpriteIcon(index: 38, size: 19),
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                        children: [
+                            ClassicSettingsOptionRow(
+                                leading: const ClassicSpriteIcon(index: 38, size: 22),
+                                title: 'Rebase',
+                                subtitle: 'Reconstruct certain collection metadata if something appears inconsistent',
+                                onTap: () async {
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rebasing...')));
+                                    final raw = await widget.booru.rebaseRaw();
+                                    await writeSettings(widget.booru.path, raw);
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rebased')));
+                                },
+                            ),
+                            const Divider(height: 1, color: ClassicPalette.border),
+                            FutureBuilder<List<bool>>(
+                                future: _hideMedia,
+                                builder: (context, snapshot) {
+                                    final ready = snapshot.hasData;
+                                    final value = ready && snapshot.data!.every((entry) => entry);
+                                    return ClassicSettingsOptionRow(
+                                        leading: const ClassicSpriteIcon(index: 18, size: 22),
+                                        title: 'Hide images from gallery',
+                                        subtitle: 'Add .nomedia markers to LocalBooru artwork and thumbnail folders',
+                                        onTap: ready ? () => _changeHideMedia(!value) : null,
+                                        trailing: Checkbox(
+                                            value: value,
+                                            onChanged: ready
+                                                ? (newValue) {
+                                                    if (newValue != null) _changeHideMedia(newValue);
+                                                }
+                                                : null,
+                                        ),
+                                    );
+                                },
+                            ),
+                            const Divider(height: 1, color: ClassicPalette.border),
+                            ClassicSettingsOptionRow(
+                                leading: Image.asset(
+                                    'assets/classic_deviantart/custom/syncthing.png',
+                                    width: 24,
+                                    height: 24,
+                                    filterQuality: FilterQuality.medium,
+                                    isAntiAlias: true,
+                                ),
+                                title: 'Syncing',
+                                subtitle: 'LocalBooru has no built-in sync service; Syncthing can synchronize the collection folder between your devices',
+                                trailing: const ClassicSpriteIcon(index: 16, size: 17),
+                                onTap: () => launchUrlString('https://syncthing.net/'),
+                            ),
+                        ],
+                    ),
                 ),
+                const SizedBox(height: 12),
+                Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFFFF4CE),
+                        border: Border.all(color: const Color(0xFFC4A653)),
+                        borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: const Text(
+                        'These options affect only the currently selected booru. Application-wide behavior remains under All settings.',
+                        style: TextStyle(fontSize: 11, height: 1.25, color: Color(0xFF765D21)),
+                    ),
+                ),
+                const SizedBox(height: 28),
             ],
         );
     }

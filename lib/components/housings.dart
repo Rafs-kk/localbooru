@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:localbooru/components/drawer.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 import 'package:localbooru/utils/listeners.dart';
 
 class DesktopHousing extends StatefulWidget {
@@ -34,34 +34,37 @@ class _DesktopHousingState extends State<DesktopHousing> {
 
     @override
     Widget build(context) {
+        final path = widget.routeUri.path;
+        final showSidebar = path == '/home' || path.startsWith('/search') || path.startsWith('/collections');
         return Stack(
             children: [
-                Row(
+                Column(
                     children: [
-                        ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 270),
-                            child: DefaultDrawer(
-                                displayTitle: false,
-                                activeView: widget.routeUri.pathSegments[0],
-                                desktopView: true,
-                            )
-                        ),
-                        // const SizedBox(width: 4),
-                        Container(
-                            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width - 270, maxHeight: MediaQuery.of(context).size.height - 2),
-                            clipBehavior: widget.roundedCorners ? Clip.antiAlias : Clip.none,
-                            decoration: widget.roundedCorners ? const BoxDecoration(
-                                borderRadius: BorderRadius.only(topLeft: Radius.circular(28)),
-                            ) : null,
-                            child: widget.child
+                        ClassicTopBar(routeUri: widget.routeUri),
+                        Expanded(
+                            child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                    if (showSidebar) ClassicSidebar(routeUri: widget.routeUri),
+                                    Expanded(
+                                        child: Container(
+                                            clipBehavior: widget.roundedCorners ? Clip.antiAlias : Clip.none,
+                                            decoration: widget.roundedCorners ? const BoxDecoration(
+                                                borderRadius: BorderRadius.only(topLeft: Radius.circular(6)),
+                                            ) : null,
+                                            child: widget.child
+                                        ),
+                                    ),
+                                ],
+                            ),
                         ),
                     ],
                 ),
                 if(importListener.isImporting) Positioned(
-                    top: 0,
+                    top: 41,
                     left: 0,
                     right: 0,
-                    child: LinearProgressIndicator(value: _importProgress == 0 ? null : _importProgress,)
+                    child: LinearProgressIndicator(value: _importProgress == 0 ? null : _importProgress, minHeight: 2)
                 ),
             ],
         );
@@ -105,18 +108,9 @@ class _MobileHousingState extends State<MobileHousing> {
                     left: 0,
                     right: 0,
                     child: SafeArea(
-                        child: LinearProgressIndicator(value: _importProgress == 0 ? null : _importProgress,)
+                        child: LinearProgressIndicator(value: _importProgress == 0 ? null : _importProgress, minHeight: 2)
                     ),
                 )
-                // Positioned(
-                //     top: 0,
-                //     left: 0,
-                //     right: 0,
-                //     child: LinearProgressIndicator(
-                //         value: _importProgress == 0 ? null : _importProgress,
-                //         minHeight: MediaQuery.of(context).viewPadding.top,
-                //     )
-                // )
             ],
         );
     }

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dynamic_system_colors/dynamic_system_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:localbooru/components/dialogs/download_dialog.dart';
 import 'package:localbooru/routing.dart';
@@ -9,6 +8,7 @@ import 'package:localbooru/utils/constants.dart';
 import 'package:localbooru/utils/listeners.dart';
 import 'package:localbooru/utils/shared_prefs_widget.dart';
 import 'package:localbooru/utils/update_checker.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 import 'package:localbooru/api/preset/index.dart';
 import 'package:localbooru/views/image_manager/shell.dart';
 import 'package:localbooru/utils/platform_tools.dart';
@@ -24,16 +24,29 @@ import 'package:fvp/fvp.dart' as fvp;
 void main() async {
     // custom error screen because release just yeets the error messages in favor of a gray screen
     ErrorWidget.builder = (FlutterErrorDetails details) {
+        // Keep diagnostics readable without causing a second RenderFlex overflow
+        // when the original exception has a long stack trace.
         return Material(
             color: const Color.fromARGB(255, 255, 0, 0),
-            child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                    const Text("An error happened:\n"),
-                    Text(details.exception.toString()),
-                    Text(details.stack.toString())
-                ],
+            child: SafeArea(
+                child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(14),
+                    child: SelectionArea(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                                const Text(
+                                    "An error happened:",
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(details.exception.toString()),
+                                const SizedBox(height: 8),
+                                Text(details.stack.toString()),
+                            ],
+                        ),
+                    ),
+                ),
             ),
         );
     };
@@ -86,7 +99,7 @@ class App extends StatefulWidget {
 }
 
 class _AppState extends State<App> {
-    late StreamSubscription _intentSub;
+    StreamSubscription? _intentSub;
 
     // This widget is the root of your application.
     @override
@@ -94,25 +107,15 @@ class _AppState extends State<App> {
         return SharedPreferencesBuilder(
             builder: (_, prefs) => ListenableBuilder(
                 listenable: themeListener,
-                builder: (context, _) => DynamicColorBuilder(
-                    builder: (lightDynamic, darkDynamic) {
-                        var theme = generateTheme(
-                            darkDynamic: darkDynamic,
-                            lightDynamic: lightDynamic,
-                            monet: prefs.getBool("monet") ?? settingsDefaults["monet"]
-                        );
-
-                        final int themeModeIndex = ["system", "light", "dark"].indexWhere((theme) => (prefs.getString("theme") ?? settingsDefaults["theme"]) == theme);
-
-                        return MaterialApp.router(
-                            theme: theme["light"],
-                            darkTheme: theme["dark"],
-                            themeMode: ThemeMode.values[themeModeIndex], 
-                            routerConfig: router,
-                            debugShowCheckedModeBanner: true,
-                        );
-                    }
-                )
+                builder: (context, _) {
+                    return MaterialApp.router(
+                        title: "LocalBooru Classic",
+                        theme: buildClassicTheme(),
+                        themeMode: ThemeMode.light,
+                        routerConfig: router,
+                        debugShowCheckedModeBanner: false,
+                    );
+                }
             )
         );
     }
@@ -194,33 +197,14 @@ class _AppState extends State<App> {
 
     @override
     void dispose() {
-        _intentSub.cancel();
+        _intentSub?.cancel();
         super.dispose();
     }
 
-    final Color _brandColor = Colors.deepPurple;
-
     Map<String, ThemeData> generateTheme({ColorScheme? lightDynamic, ColorScheme? darkDynamic, bool monet = true}) {
-        ColorScheme lightColorScheme;
-        ColorScheme darkColorScheme;
-
-        if (monet && lightDynamic != null && darkDynamic != null) {
-            lightColorScheme = lightDynamic.harmonized().copyWith();
-            darkColorScheme = darkDynamic.harmonized();
-        } else {
-            // Otherwise, use fallback schemes.
-            lightColorScheme = ColorScheme.fromSeed(
-                seedColor: _brandColor,
-            );
-            darkColorScheme = ColorScheme.fromSeed(
-                seedColor: _brandColor,
-                brightness: Brightness.dark,
-            );
-        }
-
         return {
-            "light": ThemeData.from(colorScheme: lightColorScheme, useMaterial3: true),
-            "dark": ThemeData.from(colorScheme: darkColorScheme, useMaterial3: true),
+            "light": buildClassicTheme(),
+            "dark": buildClassicTheme(dark: true),
         };
     }
 }

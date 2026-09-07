@@ -6,6 +6,7 @@ import 'package:localbooru/components/housings.dart';
 import 'package:localbooru/components/window_frame.dart';
 import 'package:localbooru/main.dart';
 import 'package:localbooru/shortcut_handler.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 import 'package:localbooru/utils/constants.dart';
 import 'package:localbooru/utils/shared_prefs_widget.dart';
 import 'package:localbooru/views/about.dart';
@@ -95,7 +96,7 @@ final router = GoRouter(
                                                     ),
                                                     actions: [
                                                         IconButton(
-                                                            icon: const Icon(Icons.add),
+                                                            icon: const ClassicCustomIcon('add_image', size: 21),
                                                             tooltip: "Add image",
                                                             onPressed: () => context.push("/manage_image"),
                                                         ),
@@ -213,14 +214,21 @@ final router = GoRouter(
                                                             },
                                                             additionalMenuOptions: [
                                                                 PopupMenuItem(
-                                                                    child: const Text("Edit collection"),
+                                                                    height: 36,
+                                                                    child: const Row(
+                                                                        children: [
+                                                                            ClassicActionIcon('edit', size: 17),
+                                                                            SizedBox(width: 7),
+                                                                            Text("Edit collection"),
+                                                                        ],
+                                                                    ),
                                                                     onTap: () => context.push("/settings/booru/collections?id=$id")
                                                                 )
                                                             ],
                                                             forceOrientation: Orientation.portrait,
                                                             actions: [
                                                                 IconButton(
-                                                                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                                                                    icon: const ClassicCustomIcon('add_image', size: 21),
                                                                     tooltip: "Add image",
                                                                     onPressed: () => context.push("/settings/booru/collections?id=$id"),
                                                                 ),
@@ -267,11 +275,14 @@ final router = GoRouter(
 
                                 // settings
                                 ShellRoute(
-                                    builder: (context, state, child) => SettingsShell(child: child),
+                                    builder: (context, state, child) => SettingsShell(routeUri: state.uri, child: child),
                                     routes: [
                                         GoRoute(path: "settings",
                                             builder: (context, state) => const SettingsHome(),
                                             routes: [
+                                                GoRoute(path: "change_booru",
+                                                    builder: (context, state) => const ChangeBooruSettingsScreen(),
+                                                ),
                                                 GoRoute(path: "overall_settings",
                                                     builder: (context, state) => SharedPreferencesBuilder(
                                                         builder: (context, prefs) => OverallSettings(prefs: prefs)

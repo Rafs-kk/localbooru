@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:localbooru/api/index.dart';
 import 'package:localbooru/components/search_tag.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 import 'package:localbooru/utils/constants.dart';
 import 'package:localbooru/views/navigation/tag_browse.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<List<ImageID>?> openSelectionDialog({required BuildContext context, List<ImageID>? selectedImages, List<ImageID>? excludeImages,}) async {
+Future<List<ImageID>?> openSelectionDialog({required BuildContext context, List<ImageID>? selectedImages, List<ImageID>? excludeImages}) async {
     final booru = await getCurrentBooru();
-
     if(!context.mounted) return null;
-
-    final res = await showDialog<List<ImageID>>(
+    return showDialog<List<ImageID>>(
         context: context,
-        builder: (context) => SelectDialog(booru: booru, selectedImages: selectedImages, excludeImages: excludeImages,)
+        builder: (context) => SelectDialog(booru: booru, selectedImages: selectedImages, excludeImages: excludeImages),
     );
-    return res;
 }
 
 class SelectDialog extends StatefulWidget {
@@ -27,93 +25,77 @@ class SelectDialog extends StatefulWidget {
     @override
     State<SelectDialog> createState() => _SelectDialogState();
 }
+
 class _SelectDialogState extends State<SelectDialog> {
     final SearchTagController controller = SearchTagController();
-
     List<ImageID> imageIDs = [];
-
-    String tags = "";
+    String tags = '';
 
     @override
     void initState() {
         super.initState();
-        imageIDs = widget.selectedImages ?? [];
+        imageIDs = List<ImageID>.from(widget.selectedImages ?? const []);
     }
 
-    void onSearch() {
-        setState(() {
-            tags = controller.text;
-        });
-        debugPrint(tags);
-    }
+    void onSearch() => setState(() => tags = controller.text);
 
     @override
     Widget build(context) {
         return OrientationBuilder(
             builder: (context, orientation) {
-                return AlertDialog(
-                    // backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    elevation: 0,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8).add(const EdgeInsets.only(bottom: 24)),
-                    titlePadding: const EdgeInsets.all(16).subtract(const EdgeInsets.only(bottom: 8)),
-                    clipBehavior: Clip.antiAlias,
-                    titleTextStyle: const TextStyle(
-                        fontSize: 18
-                    ),
-                    title: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                            // Padding(
-                            //     padding: const EdgeInsets.all(16.0),
-                            //     child: Text("Selected: ${imageIDs.length}"),
-                            // ),
-                            Container(
-                                constraints: const BoxConstraints(maxHeight: 44),
-                                child: SearchTagBox(
-                                    controller: controller,
-                                    onSearch: (value) => onSearch(),
-                                    hint: imageIDs.isNotEmpty ? "Selected: ${imageIDs.length}" : "Select elements",
-                                    leading: const Padding(
-                                        padding: EdgeInsets.only(right: 12.0, left: 8),
-                                        child: Icon(Icons.search),
+                final screen = MediaQuery.sizeOf(context);
+                final width = orientation == Orientation.landscape ? screen.width * .72 : screen.width - 28;
+                final height = screen.height * .78;
+                return ClassicDialogFrame(
+                    title: 'Select Deviations',
+                    icon: const ClassicActionIcon('collection', size: 20),
+                    width: width,
+                    maxWidth: width,
+                    contentPadding: const EdgeInsets.fromLTRB(9, 9, 9, 8),
+                    child: SizedBox(
+                        height: height.clamp(420.0, 720.0).toDouble(),
+                        child: Column(
+                            children: [
+                                SizedBox(
+                                    height: 36,
+                                    child: SearchTagBox(
+                                        controller: controller,
+                                        onSearch: (_) => onSearch(),
+                                        hint: imageIDs.isNotEmpty ? 'Selected: ${imageIDs.length}' : 'Search deviations…',
+                                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                                        classicStyle: orientation == Orientation.landscape,
                                     ),
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
                                 ),
-                            ),
-                        ],
+                                const SizedBox(height: 8),
+                                Expanded(
+                                    child: ClipRect(
+                                        child: GalleryViewer(
+                                            key: ValueKey(tags),
+                                            searcher: (index) async {
+                                                final prefs = await SharedPreferences.getInstance();
+                                                final booru = await getCurrentBooru();
+                                                final indexSize = prefs.getInt('page_size') ?? settingsDefaults['page_size'];
+                                                final finalTags = [tags, ...(widget.excludeImages ?? []).map((e) => '-id:$e')].join(' ');
+                                                final indexLength = await booru.getIndexNumberLength(finalTags, size: indexSize);
+                                                final images = await booru.searchByTags(finalTags, index: index, size: indexSize);
+                                                return SearchableInformation(images: images, indexLength: indexLength);
+                                            },
+                                            selectionMode: true,
+                                            selectedImages: imageIDs,
+                                            onSelect: (images) => setState(() => imageIDs = images),
+                                            displayBackButton: false,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
                     ),
                     actions: [
-                        TextButton(
-                            onPressed: Navigator.of(context).pop,
-                            child: const Text("Cancel"),
-                        ),
-                        TextButton(
-                            child: const Text("Select"),
-                            onPressed: () => Navigator.of(context).pop(imageIDs),
-                        )
+                        ClassicBevelButton(label: 'Cancel', onPressed: Navigator.of(context).pop),
+                        ClassicBevelButton(label: 'Select (${imageIDs.length})', accent: true, onPressed: () => Navigator.of(context).pop(imageIDs)),
                     ],
-                    content: SizedBox(
-                        width: MediaQuery.of(context).size.width * (orientation == Orientation.landscape ? 0.6 : 1),
-                        child: GalleryViewer(
-                            key: ValueKey(tags),
-                            searcher: (index) async {
-                                SharedPreferences prefs = await SharedPreferences.getInstance();
-                                final Booru booru = await getCurrentBooru();
-                                int indexSize = prefs.getInt("page_size") ?? settingsDefaults["page_size"];
-
-                                final finalTags = [tags, ...(widget.excludeImages ?? []).map((e) => "-id:$e")].join(" ");
-
-                                int indexLength = await booru.getIndexNumberLength(finalTags, size: indexSize);
-                                List<BooruImage> images = await booru.searchByTags(finalTags, index: index, size: indexSize);
-                                return SearchableInformation(images: images, indexLength: indexLength);
-                            },
-                            selectionMode: true,
-                            selectedImages: imageIDs,
-                            onSelect: (images) => setState(() => imageIDs = images),
-                        ),
-                    ),
                 );
-            }
+            },
         );
     }
 }

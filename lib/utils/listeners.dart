@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 class AcessibleNotifyListenerNotifier with ChangeNotifier {
     void update() {
@@ -7,9 +8,23 @@ class AcessibleNotifyListenerNotifier with ChangeNotifier {
 }
 
 class BooruUpdateListener with ChangeNotifier {
+    bool _notificationQueued = false;
+
     void update() {
-        notifyListeners();
-        counterListener.update();
+        // Repository writes can complete while Flutter is in the middle of a
+        // build/layout frame. Notifying synchronously in that phase makes
+        // listeners call setState/markNeedsBuild during build, which can then
+        // cascade into Navigator/GlobalKey assertions. Coalesce bursts of
+        // repository changes and dispatch them once the current frame ends.
+        if (_notificationQueued) return;
+        _notificationQueued = true;
+
+        Future<void>(() async {
+            await SchedulerBinding.instance.endOfFrame;
+            _notificationQueued = false;
+            notifyListeners();
+            counterListener.update();
+        });
     }
 }
 BooruUpdateListener booruUpdateListener = BooruUpdateListener();

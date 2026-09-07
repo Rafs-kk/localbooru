@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:localbooru/api/index.dart';
 import 'package:localbooru/components/context_menu.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 import 'package:localbooru/utils/platform_tools.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:localbooru/components/window_frame.dart';
@@ -44,15 +45,18 @@ class _ImageViewZoomState extends State<ImageViewZoom> {
                     actions: [
                         if(orientation == Orientation.landscape) ...[
                             IconButton(
-                                icon: const Icon(Icons.zoom_in),
+                                icon: const ClassicIconBadge(icon: Icons.zoom_in, size: 18),
                                 onPressed: () => zoom(1.5),
                             ),
                             IconButton(
-                                icon: const Icon(Icons.zoom_out),
+                                icon: const ClassicIconBadge(icon: Icons.zoom_out, size: 18),
                                 onPressed: () => zoom(0.7),
                             )
                         ],
                         PopupMenuButton(
+                            tooltip: 'Image actions',
+                            icon: const ClassicCustomIcon('image_actions', size: 18),
+                            padding: EdgeInsets.zero,
                             itemBuilder: (context) => imageShareItems(widget.image),
                         ),
                     ],

@@ -105,6 +105,11 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/classic_deviantart/icons/
+    - assets/classic_deviantart/custom/
+    - assets/classic_deviantart/ratings/
+    - assets/classic_deviantart/actions/
+    - assets/classic_deviantart/search_terms/
     - assets/brand/icon.svg
     - assets/brand/monochrome-icon.svg
     - assets/brand/rounded-icon.svg

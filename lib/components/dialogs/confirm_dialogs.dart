@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 
 class DeleteImageDialogue extends StatelessWidget {
     const DeleteImageDialogue({super.key});
 
     @override
     Widget build(BuildContext context) {
-        return AlertDialog(
-            title: const Text("Delete image"),
-            content: const Text("Are you sure that you want to delete this image? This action will be irreversible"),
+        return ClassicDialogFrame(
+            title: 'Confirm Delete',
+            icon: const ClassicActionIcon('delete', size: 20),
+            width: 430,
+            child: const Text('Are you sure you want to delete this item? This action cannot be undone.', style: TextStyle(fontSize: 12, height: 1.3)),
             actions: [
-                TextButton(onPressed: Navigator.of(context).pop, child: const Text("No")),
-                TextButton(
-                    child: const Text("Yes"), 
-                    onPressed: () => Navigator.of(context).pop(true)
-                ),
+                ClassicBevelButton(label: 'No', onPressed: Navigator.of(context).pop),
+                ClassicBevelButton(label: 'Yes, Delete', leading: const ClassicActionIcon('delete', size: 15), onPressed: () => Navigator.of(context).pop(true)),
             ],
         );
     }
@@ -24,15 +24,14 @@ class UnsavedChangesDialogue extends StatelessWidget {
 
     @override
     Widget build(BuildContext context) {
-        return AlertDialog(
-            title: const Text("Unsaved changes"),
-            content: const Text("You have unsaved changes. Do you want to discard the changes and exit?"),
+        return ClassicDialogFrame(
+            title: 'Unsaved Changes',
+            icon: const ClassicSpriteIcon(index: 20, size: 20),
+            width: 450,
+            child: const Text('You have unsaved changes. Do you want to discard them and exit?', style: TextStyle(fontSize: 12, height: 1.3)),
             actions: [
-                TextButton(
-                    child: const Text("Yes"), 
-                    onPressed: () => Navigator.of(context).pop(true)
-                ),
-                TextButton(onPressed: Navigator.of(context).pop, child: const Text("No")),
+                ClassicBevelButton(label: 'Keep Editing', onPressed: Navigator.of(context).pop),
+                ClassicBevelButton(label: 'Discard', onPressed: () => Navigator.of(context).pop(true)),
             ],
         );
     }

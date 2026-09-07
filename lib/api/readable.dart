@@ -10,10 +10,54 @@ class Booru {
     String path;
 
     Future<Map<String, dynamic>> getRawInfo() async {
-        final File file = File(p.join(path, "repoinfo.json"));
-        final String fileinfo = await file.readAsString();
-        final Map<String, dynamic> json = jsonDecode(fileinfo);
-        return json;
+        final String repoInfoPath = p.join(path, "repoinfo.json");
+        final File file = File(repoInfoPath);
+        Object? lastError;
+        StackTrace? lastStack;
+
+        Future<Map<String, dynamic>> decodeFile(File source) async {
+            final String fileinfo = await source.readAsString();
+            if (fileinfo.trim().isEmpty) {
+                throw const FormatException('Repository metadata is empty');
+            }
+            final dynamic decoded = jsonDecode(fileinfo);
+            if (decoded is! Map) {
+                throw const FormatException('Repository metadata must be a JSON object');
+            }
+            return Map<String, dynamic>.from(decoded);
+        }
+
+        // A short retry also makes reads tolerant of external sync/antivirus
+        // tools momentarily replacing the file. Atomic LocalBooru writes should
+        // normally succeed on the first attempt.
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                return await decodeFile(file);
+            } catch (error, stack) {
+                lastError = error;
+                lastStack = stack;
+                if (attempt < 2) {
+                    await Future.delayed(Duration(milliseconds: 20 * (attempt + 1)));
+                }
+            }
+        }
+
+        // Last-resort recovery from the last valid snapshot maintained by
+        // writeSettings(). Returning the backup keeps the UI usable instead of
+        // turning a transient/partial JSON read into an unhandled exception.
+        final File backup = File("$repoInfoPath.bak");
+        if (await backup.exists()) {
+            try {
+                final recovered = await decodeFile(backup);
+                debugPrint('[RepositoryRead] Recovered metadata from repoinfo.json.bak');
+                return recovered;
+            } catch (_) {}
+        }
+
+        Error.throwWithStackTrace(
+            lastError ?? const FormatException('Could not read repository metadata'),
+            lastStack ?? StackTrace.current,
+        );
     }
     Future<Map<String, dynamic>> rebaseRaw() async {
         return rebase(Map.from(await getRawInfo()));

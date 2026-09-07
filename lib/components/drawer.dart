@@ -5,10 +5,9 @@ import 'package:localbooru/api/preset/index.dart';
 import 'package:localbooru/components/dialogs/download_dialog.dart';
 import 'package:localbooru/components/dialogs/image_selector_dialog.dart';
 import 'package:localbooru/components/dialogs/textfield_dialogs.dart';
-import 'package:localbooru/utils/constants.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 import 'package:localbooru/utils/listeners.dart';
 import 'package:localbooru/views/image_manager/shell.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 class DefaultDrawer extends StatelessWidget {
@@ -40,7 +39,7 @@ class DefaultDrawer extends StatelessWidget {
                     textColor: assertSelected("home"),
                     iconColor: assertSelected("home"),
                     title: const Text("Home"),
-                    leading: const Icon(Icons.home),
+                    leading: const ClassicSpriteIcon(index: 41, size: 20),
                     onTap: activeView != "home" ? () {
                         Scaffold.of(context).closeDrawer();
                         context.go("/home");
@@ -50,7 +49,7 @@ class DefaultDrawer extends StatelessWidget {
                     textColor: assertSelected("recent") ?? assertSelected("search"),
                     iconColor: assertSelected("recent") ?? assertSelected("search"),
                     title: Text(desktopView ? "Search" : "Recents"),
-                    leading: Icon(desktopView ? Icons.search : Icons.history),
+                    leading: desktopView ? const ClassicCustomIcon('search', size: 20) : const ClassicSpriteIcon(index: 38, size: 20),
                     onTap: activeView != "recent" && activeView != "search" ? () {
                         Scaffold.of(context).closeDrawer();
                         context.push("/recent");
@@ -60,7 +59,7 @@ class DefaultDrawer extends StatelessWidget {
                     textColor: assertSelected("collections"),
                     iconColor: assertSelected("collections"),
                     title: const Text("Collections"),
-                    leading: const Icon(Icons.photo_library),
+                    leading: const ClassicActionIcon('collection', size: 20),
                     onTap: activeView != "collections" ? () {
                         Scaffold.of(context).closeDrawer();
                         context.push("/collections");
@@ -71,7 +70,7 @@ class DefaultDrawer extends StatelessWidget {
                     textColor: assertSelected("manage_image"),
                     iconColor: assertSelected("manage_image"),
                     title: const Text("Add image"),
-                    leading: const Icon(Icons.add),
+                    leading: const ClassicCustomIcon('add_image', size: 20),
                     onTap: activeView != "manage_image" ? () {
                         Scaffold.of(context).closeDrawer();
                         context.push("/manage_image");
@@ -79,7 +78,7 @@ class DefaultDrawer extends StatelessWidget {
                 ),
                 ListTile(
                     title: const Text("Import from service"),
-                    leading: const Icon(Icons.link),
+                    leading: const ClassicSpriteIcon(index: 38, size: 20),
                     enabled: activeView != "manage_image",
                     onTap: () async {
                         final router = GoRouter.of(context);
@@ -112,7 +111,7 @@ class DefaultDrawer extends StatelessWidget {
                     textColor: assertSelected("settings"),
                     iconColor: assertSelected("settings"),
                     title: const Text("Settings"),
-                    leading: const Icon(Icons.settings),
+                    leading: const ClassicCustomIcon('settings', size: 20),
                     onTap: activeView != "settings" ? () {
                         Scaffold.of(context).closeDrawer();
                         context.push("/settings");
@@ -149,16 +148,6 @@ class DefaultDrawer extends StatelessWidget {
                         onTap: () {
                             Scaffold.of(context).closeDrawer();
                             lockListener.lock();
-                        },
-                    ),
-                    ListTile(
-                        title: const Text("Toggle theme"),
-                        onTap: () async {
-                            final prefs = await SharedPreferences.getInstance();
-                            final theme = prefs.getString("theme") ?? settingsDefaults["theme"];
-                            if (theme == "dark") await prefs.setString("theme", "light");
-                            else await prefs.setString("theme", "dark");
-                            themeListener.update();
                         },
                     ),
                     ListTile(

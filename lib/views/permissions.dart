@@ -4,6 +4,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 
 class PermissionsScreen extends StatefulWidget{
     const PermissionsScreen({super.key});
@@ -29,7 +30,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>{
                             const SizedBox(height: 16),
                             FilledButton.icon(
                                 label: const Text("Give storage permissions"),
-                                icon: const Icon(Icons.folder),
+                                icon: const ClassicCustomIcon('select_booru_folder', size: 20),
                                 onPressed: () async {
                                     final permission = await getStoragePermission();
                                     final status = await permission.request();

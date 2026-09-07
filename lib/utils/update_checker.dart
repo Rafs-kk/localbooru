@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:yaml/yaml.dart';
+import 'package:localbooru/theme/classic_deviantart.dart';
 
 class VersionResponse {
     VersionResponse(this.release);
@@ -37,16 +38,20 @@ class UpdateAvaiableDialog extends StatelessWidget {
 
     @override
     Widget build(BuildContext context) {
-        return AlertDialog(
-            title: const Text("Update avaiable"),
-            content: Text("A new version is avaiable for download: ${ver.version}. Update now?"),
+        return ClassicDialogFrame(
+            title: 'Update Available',
+            icon: const ClassicSpriteIcon(index: 38, size: 20),
+            width: 460,
+            child: Text('A new version is available for download: ${ver.version}. Update now?', style: const TextStyle(fontSize: 12)),
             actions: [
-                TextButton(onPressed: Navigator.of(context).pop, child: const Text("Later")),
-                TextButton(child: const Text("Yes"), 
+                ClassicBevelButton(label: 'Later', onPressed: Navigator.of(context).pop),
+                ClassicBevelButton(
+                    label: 'Open Releases',
+                    accent: true,
                     onPressed: () {
-                        launchUrlString("https://github.com/resucutie/localbooru/releases/");
+                        launchUrlString('https://github.com/resucutie/localbooru/releases/');
                         Navigator.of(context).pop();
-                    }
+                    },
                 ),
             ],
         );
