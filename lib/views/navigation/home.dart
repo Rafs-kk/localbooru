@@ -146,7 +146,7 @@ class _HomePageState extends State<HomePage> {
                                 width: 520,
                                 child: ClassicPanel(
                                     title: 'Could not load the collection',
-                                    icon: Icons.error_outline,
+                                    headerIcon: const ClassicCustomIcon('error_sad', size: 18),
                                     child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         crossAxisAlignment: CrossAxisAlignment.start,

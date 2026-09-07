@@ -22,28 +22,61 @@ import 'package:window_manager/window_manager.dart';
 import 'package:fvp/fvp.dart' as fvp;
 
 void main() async {
-    // custom error screen because release just yeets the error messages in favor of a gray screen
+    // Keep framework/build errors visible in release builds, but present them
+    // using the same calm classic palette as the rest of the application.
+    // The scroll view also prevents a long exception/stack trace from creating
+    // a second RenderFlex overflow while the original error is being shown.
     ErrorWidget.builder = (FlutterErrorDetails details) {
-        // Keep diagnostics readable without causing a second RenderFlex overflow
-        // when the original exception has a long stack trace.
         return Material(
-            color: const Color.fromARGB(255, 255, 0, 0),
+            color: ClassicPalette.page,
             child: SafeArea(
                 child: SingleChildScrollView(
                     padding: const EdgeInsets.all(14),
-                    child: SelectionArea(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                                const Text(
-                                    "An error happened:",
-                                    style: TextStyle(fontWeight: FontWeight.bold),
+                    child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 820),
+                            child: ClassicPanel(
+                                title: 'An error happened',
+                                headerIcon: const ClassicCustomIcon('error_sad', size: 18),
+                                child: SelectionArea(
+                                    child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                            Text(
+                                                details.exception.toString(),
+                                                softWrap: true,
+                                                style: const TextStyle(
+                                                    fontSize: 12,
+                                                    height: 1.35,
+                                                    color: ClassicPalette.ink,
+                                                ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Container(
+                                                width: double.infinity,
+                                                padding: const EdgeInsets.all(9),
+                                                decoration: BoxDecoration(
+                                                    color: ClassicPalette.panelAlt,
+                                                    border: Border.all(color: ClassicPalette.border),
+                                                    borderRadius: BorderRadius.circular(3),
+                                                ),
+                                                child: Text(
+                                                    details.stack.toString(),
+                                                    softWrap: true,
+                                                    style: const TextStyle(
+                                                        fontFamily: 'monospace',
+                                                        fontSize: 10.5,
+                                                        height: 1.25,
+                                                        color: ClassicPalette.muted,
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
                                 ),
-                                const SizedBox(height: 8),
-                                Text(details.exception.toString()),
-                                const SizedBox(height: 8),
-                                Text(details.stack.toString()),
-                            ],
+                            ),
                         ),
                     ),
                 ),
