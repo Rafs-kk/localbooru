@@ -1,9 +1,9 @@
 > **Classic UI fork:** This package includes an extensive retro green interface inspired by late-2000s/early-2010s art-community design while preserving LocalBooru's local-only behavior. See [`CLASSIC_UI.md`](CLASSIC_UI.md) for the implementation overview and build notes.
 
-<p align="center"><img src="assets/promotional/banner + screenshot.png"/></p>
+<p align="center"><img src="assets/promotional/classic DA layout.png"/></p>
 
 <p align="center">
-    Your personal booru collection
+    Your personal booru collection...now with a nostalgic look!
 </p>
 <p align="center">
     This is a cross platform local booru collection that exclusively works on your local storage, without selfhosting.
