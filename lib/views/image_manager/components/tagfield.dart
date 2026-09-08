@@ -39,14 +39,25 @@ class _TagFieldState extends State<TagField> {
         _ownsController = widget.controller == null;
         controller = widget.controller ?? TextEditingController();
         _lastUserEditingValue = controller.value;
+        controller.addListener(_rememberEditingValue);
         cacheTags();
     }
 
     @override
     void dispose() {
+        controller.removeListener(_rememberEditingValue);
         _focusNode.dispose();
         if(_ownsController) controller.dispose();
         super.dispose();
+    }
+
+    void _rememberEditingValue() {
+        // onChanged only tracks text changes. A controller listener also sees caret
+        // movement and mouse-driven selection changes, which matter when replacing
+        // only the active autocomplete token.
+        if(_pendingSelectionSource == null) {
+            _lastUserEditingValue = controller.value;
+        }
     }
 
     Future<void> cacheTags() async {
@@ -93,6 +104,46 @@ class _TagFieldState extends State<TagField> {
         return _ActiveToken(start: start, end: end, text: text.substring(start, end));
     }
 
+    void _moveCaret(TextEditingController textController, int direction) {
+        final text = textController.text;
+        final selection = textController.selection;
+
+        if(!selection.isValid) {
+            final fallback = direction < 0 ? text.length : 0;
+            textController.selection = TextSelection.collapsed(offset: fallback);
+            return;
+        }
+
+        // Match ordinary desktop text-editor behavior: pressing an unmodified
+        // arrow key while text is selected collapses to the appropriate edge.
+        if(!selection.isCollapsed) {
+            final offset = direction < 0 ? selection.start : selection.end;
+            textController.selection = TextSelection.collapsed(offset: offset);
+            return;
+        }
+
+        final offset = (selection.extentOffset + direction).clamp(0, text.length).toInt();
+        textController.selection = TextSelection.collapsed(offset: offset);
+    }
+
+    void _collapseAccidentalMouseSelection(TextEditingController textController) {
+        final keyboard = HardwareKeyboard.instance;
+
+        // Preserve intentional modifier-assisted selection such as Shift+click.
+        if(keyboard.isShiftPressed || keyboard.isControlPressed || keyboard.isAltPressed || keyboard.isMetaPressed) {
+            _lastUserEditingValue = textController.value;
+            return;
+        }
+
+        final selection = textController.selection;
+        if(selection.isValid && !selection.isCollapsed) {
+            // On desktop, the extent is the position that was just clicked. Collapse
+            // there so a normal click places the caret instead of extending a range.
+            textController.selection = TextSelection.collapsed(offset: selection.extentOffset);
+        }
+        _lastUserEditingValue = textController.value;
+    }
+
     void _selectSuggestion(BooruTagCounterDisplay<NormalTag> option) {
         final source = _pendingSelectionSource ?? _lastUserEditingValue;
         _pendingSelectionSource = null;
@@ -121,6 +172,13 @@ class _TagFieldState extends State<TagField> {
         );
         _lastUserEditingValue = controller.value;
         widget.onChanged?.call(newText);
+
+        // Mouse selection already leaves the field focused. Keyboard submission can
+        // otherwise inherit TextField's default "done editing" focus behavior. Ask
+        // for focus again after RawAutocomplete has finished its selection cycle.
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+            if(mounted) _focusNode.requestFocus();
+        });
     }
 
     @override
@@ -204,7 +262,7 @@ class _TagFieldState extends State<TagField> {
                     fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
                         final decoration = widget.decoration ?? const InputDecoration();
                         final label = decoration.labelText;
-                        final field = TextFormField(
+                        final rawField = TextFormField(
                             key: textboxKey,
                             controller: textController,
                             focusNode: focusNode,
@@ -218,6 +276,12 @@ class _TagFieldState extends State<TagField> {
                             inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\n'))],
                             validator: widget.validator,
                             style: widget.style,
+                            selectAllOnFocus: false,
+                            // Override TextField's default completion behavior. Enter is
+                            // still forwarded to RawAutocomplete below, but it must not
+                            // make the tag editor relinquish focus afterward.
+                            onEditingComplete: () {},
+                            onTap: () => _collapseAccidentalMouseSelection(textController),
                             onFieldSubmitted: (value) {
                                 _pendingSelectionSource = textController.value;
                                 onFieldSubmitted();
@@ -227,6 +291,19 @@ class _TagFieldState extends State<TagField> {
                                 widget.onChanged?.call(value);
                             },
                         );
+
+                        final field = CallbackShortcuts(
+                            bindings: <ShortcutActivator, VoidCallback>{
+                                // RawAutocomplete only needs Up/Down for its option list.
+                                // Keep plain Left/Right dedicated to normal caret movement;
+                                // Shift/Ctrl/Alt/Meta variants continue to use Flutter's
+                                // standard text-editing shortcuts.
+                                const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _moveCaret(textController, -1),
+                                const SingleActivator(LogicalKeyboardKey.arrowRight): () => _moveCaret(textController, 1),
+                            },
+                            child: rawField,
+                        );
+
                         if(label == null || label.isEmpty) return field;
                         return ClassicFieldLabel(label: label, child: field);
                     },
