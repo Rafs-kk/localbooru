@@ -80,7 +80,9 @@ List<PopupMenuEntry> imageShareItems(BooruImage image) {
             height: 36,
             child: const Row(
                 children: [
-                    ClassicSpriteIcon(index: 0, size: 17),
+                    // 02.png: small computer/monitor icon, a better match for
+                    // opening the file in a separate desktop image-viewer app.
+                    ClassicSpriteIcon(index: 2, size: 17),
                     SizedBox(width: 7),
                     Text("Open image in image viewer"),
                 ],

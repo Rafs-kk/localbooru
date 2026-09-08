@@ -148,10 +148,10 @@ class _GalleryViewerState extends State<GalleryViewer> {
     Widget build(BuildContext context) {
         final List<Widget> actions = [
             ...(widget.actions ?? []),
-            PopupMenuButton(
-                tooltip: 'Gallery options',
-                icon: const ClassicCustomIcon('menu', size: 18),
-                padding: EdgeInsets.zero,
+			PopupMenuButton(
+				tooltip: 'Gallery options',
+				icon: const ClassicCustomIcon('menu', size: 18),
+				padding: const EdgeInsets.all(8),
                 itemBuilder: (context) {
                     return [
                         ...booruItems(),
@@ -221,9 +221,9 @@ class _GalleryViewerState extends State<GalleryViewer> {
                                                             },
                                                         ),
                                                         PopupMenuButton(
-                                                            tooltip: 'Selected deviation actions',
-                                                            icon: const ClassicCustomIcon('image_actions', size: 18),
-                                                            padding: EdgeInsets.zero,
+															tooltip: 'Selected deviation actions',
+															icon: const ClassicCustomIcon('image_actions', size: 18),
+															padding: const EdgeInsets.all(8),
                                                             itemBuilder: (context) {
                                                             if(_selectedImages.length == 1) return singleContextMenuItems(snapshot.data!["images"].firstWhere((element) => element.id == _selectedImages[0]));
                                                             else if(_selectedImages.length > 1) return multipleContextMenuItems(snapshot.data!["images"].where((element) => _selectedImages.contains(element.id)).toList());

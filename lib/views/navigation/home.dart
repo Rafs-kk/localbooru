@@ -179,10 +179,13 @@ class _HomePageState extends State<HomePage> {
                                                         child: Text('Browse Deviations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                                                     ),
                                                     ClassicBevelButton(
-                                                        label: 'Collections',
-                                                        icon: Icons.photo_library_outlined,
-                                                        onPressed: () => context.push('/collections'),
-                                                    ),
+														label: 'Collections',
+														leading: const ClassicIconBadge(
+															icon: Icons.photo_library_outlined,
+															size: 21,
+														),
+														onPressed: () => context.push('/collections'),
+													),
                                                     const SizedBox(width: 6),
                                                     ClassicBevelButton(
                                                         label: 'Submit',
@@ -331,7 +334,7 @@ class _HomePageState extends State<HomePage> {
                                         const SizedBox(height: 12),
                                         const ClassicPanel(
                                             title: 'Image Counter',
-                                            icon: Icons.bar_chart,
+                                            headerIcon: ClassicSpriteIcon(index: 22, size: 17),
                                             child: Center(child: ImageDisplay()),
                                         ),
                                     ],

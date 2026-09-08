@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:localbooru/components/add_image_drop_region.dart';
 import 'package:localbooru/components/fileinfo.dart';
 import 'package:localbooru/components/video_view.dart';
 import 'package:localbooru/theme/classic_deviantart.dart';
@@ -25,6 +26,17 @@ class ImageUploadForm extends StatelessWidget {
         onChanged(files);
     }
 
+    Widget _withDropRegion(FormFieldState<String> state, Widget child) {
+        return AddImageDropRegion(
+            onFilesDropped: (files) {
+                if(files.isEmpty) return;
+                state.didChange(files.first.path);
+                onChanged(files);
+            },
+            child: child,
+        );
+    }
+
     @override
     Widget build(BuildContext context) {
         return FormField<String>(
@@ -35,7 +47,7 @@ class ImageUploadForm extends StatelessWidget {
                 final borderColor = state.hasError ? Theme.of(context).colorScheme.error : ClassicPalette.borderDark;
 
                 if(currentValue.isEmpty) {
-                    return Column(
+                    return _withDropRegion(state, Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                             InkWell(
@@ -74,7 +86,7 @@ class ImageUploadForm extends StatelessWidget {
                                 child: Text(state.errorText!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11)),
                             ),
                         ],
-                    );
+                    ));
                 }
 
                 final preview = Container(
@@ -126,7 +138,7 @@ class ImageUploadForm extends StatelessWidget {
                     ),
                 );
 
-                return Column(
+                return _withDropRegion(state, Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                         if(orientation == Orientation.landscape)
@@ -148,7 +160,7 @@ class ImageUploadForm extends StatelessWidget {
                             child: Text(state.errorText!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11)),
                         ),
                     ],
-                );
+                ));
             },
         );
     }

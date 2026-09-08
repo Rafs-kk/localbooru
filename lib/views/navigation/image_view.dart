@@ -491,14 +491,10 @@ class _ImageViewDisplayState extends State<ImageViewDisplay> {
                                         },
                                         allowedOperations: () => [DropOperation.copy],
                                         child: DraggableWidget(
-                                            child: Container(
-                                                padding: const EdgeInsets.all(4),
-                                                decoration: BoxDecoration(
-                                                    color: const Color(0xFFF7F8F5),
-                                                    border: Border.all(color: ClassicPalette.borderDark),
-                                                    boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 5, offset: Offset(2, 3))],
-                                                ),
-                                                child: Image.file(widget.image.getImage(), fit: BoxFit.contain),
+                                            child: Image.file(
+                                                widget.image.getImage(),
+                                                fit: BoxFit.contain,
+                                                filterQuality: FilterQuality.medium,
                                             ),
                                         )
                                     ),
@@ -537,7 +533,6 @@ class _ImageViewProprietiesState extends State<ImageViewProprieties> {
             _collections = getCurrentBooru().then((booru) => booru.obtainMatchingCollection(widget.image.id));
         }
     }
-
     void openContextMenu({required Offset globalPosition, required String url}) {
         final overlayObject = Overlay.of(context).context.findRenderObject();
         if (overlayObject is! RenderBox) return;

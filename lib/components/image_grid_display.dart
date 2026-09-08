@@ -114,6 +114,7 @@ class ImageGrid extends StatefulWidget {
 
 class _ImageGridState extends State<ImageGrid> {
     late Future<File> imageThumbnail;
+    bool _hasTransparency = true;
 
     String getType(String filename) {
         final mime = lookupMimeType(filename) ?? 'image/unknown';
@@ -142,6 +143,14 @@ class _ImageGridState extends State<ImageGrid> {
     void initState() {
         super.initState();
         imageThumbnail = getImageThumbnail(widget.image);
+
+        imageHasTransparency(widget.image.getImage()).then((value) {
+            if(!mounted) return;
+
+            setState(() {
+                _hasTransparency = value;
+            });
+        });
     }
 
     @override
@@ -154,16 +163,19 @@ class _ImageGridState extends State<ImageGrid> {
                     curve: Curves.easeOut,
                     child: Container(
                         constraints: const BoxConstraints(minWidth: 54, minHeight: 54),
-                        padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
-                            color: const Color(0xFFF7F8F5),
-                            border: Border.all(color: widget.selected ? ClassicPalette.link : ClassicPalette.borderDark, width: widget.selected ? 2 : 1),
-                            boxShadow: const [
-                                BoxShadow(color: Color(0x55000000), blurRadius: 3, offset: Offset(1, 2)),
-                            ],
+                            // Normal gallery artwork is intentionally frameless.
+                            // Keep an outline only while explicitly selected.
+                            border: widget.selected
+                                ? Border.all(
+                                    color: ClassicPalette.link,
+                                    width: 2,
+                                )
+                                : null,
                         ),
                         child: Stack(
                             fit: StackFit.expand,
+                            clipBehavior: Clip.none,
                             children: [
                                 FutureBuilder<File>(
                                     future: imageThumbnail,
@@ -177,7 +189,30 @@ class _ImageGridState extends State<ImageGrid> {
                                                 height: widget.resizeSize!.ceil(),
                                                 policy: ResizeImagePolicy.fit,
                                             ) : FileImage(thumbnail) as ImageProvider;
-                                            return Image(image: provider, fit: BoxFit.contain, filterQuality: FilterQuality.medium);
+
+                                            // The shadow must follow the rendered artwork rectangle,
+                                            // not the entire grid cell. Center loosens the Stack's tight
+                                            // constraints so this Container can size itself to the Image.
+                                            return Center(
+                                                child: Container(
+                                                    decoration: BoxDecoration(
+                                                        boxShadow: _hasTransparency
+                                                            ? null
+                                                            : const [
+                                                                BoxShadow(
+                                                                    color: Color(0x55000000),
+                                                                    blurRadius: 3,
+                                                                    offset: Offset(1, 2),
+                                                                ),
+                                                            ],
+                                                    ),
+                                                    child: Image(
+                                                        image: provider,
+                                                        fit: BoxFit.contain,
+                                                        filterQuality: FilterQuality.medium,
+                                                    ),
+                                                ),
+                                            );
                                         }
                                         if(snapshot.hasError) {
                                             return const Center(child: Opacity(opacity: .55, child: ClassicSpriteIcon(index: 0, size: 28)));
@@ -198,7 +233,16 @@ class _ImageGridState extends State<ImageGrid> {
                                         child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                                imageType == 'video' ? const ClassicSpriteIcon(index: 2, size: 12) : const ClassicSpriteIcon(index: 0, size: 12),
+                                                Image.asset(
+                                                    imageType == 'video'
+                                                        ? 'assets/classic_deviantart/custom/video.png'
+                                                        : 'assets/classic_deviantart/custom/gif.png',
+                                                    width: 14,
+                                                    height: 14,
+                                                    fit: BoxFit.contain,
+                                                    filterQuality: FilterQuality.medium,
+                                                    isAntiAlias: true,
+                                                ),
                                                 const SizedBox(width: 3),
                                                 Text(imageType.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white)),
                                             ],

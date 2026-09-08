@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,146 @@ import 'package:localbooru/api/index.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+final Map<String, Future<bool>> _imageTransparencyCache = {};
+
+Future<bool> imageHasTransparency(File file) async {
+    final mime = lookupMimeType(file.path);
+
+    if(mime == null || !mime.startsWith('image/')) {
+        return false;
+    }
+
+    // These formats cannot contain an alpha channel.
+    if(
+        mime == 'image/jpeg' ||
+        mime == 'image/bmp' ||
+        mime == 'image/wbmp'
+    ) {
+        return false;
+    }
+
+    try {
+        final stat = await file.stat();
+
+        // Including modification time and size prevents an edited/replaced file
+        // from inheriting an obsolete transparency result.
+        final cacheKey =
+            '${file.path}|${stat.size}|${stat.modified.microsecondsSinceEpoch}';
+
+        return _imageTransparencyCache.putIfAbsent(
+            cacheKey,
+            () => _decodeImageHasTransparency(file),
+        );
+    } catch (_) {
+        return false;
+    }
+}
+
+Future<bool> _decodeImageHasTransparency(File file) async {
+    ui.Codec? codec;
+
+    try {
+        final decodedCodec = await ui.instantiateImageCodec(
+            await file.readAsBytes(),
+            targetWidth: 96,
+            allowUpscaling: false,
+        );
+
+        codec = decodedCodec;
+
+        // Check every frame. This also handles GIF/WebP files where
+        // transparency may appear during the animation.
+        for(
+            int frameIndex = 0;
+            frameIndex < decodedCodec.frameCount;
+            frameIndex++
+        ) {
+            final frame = await decodedCodec.getNextFrame();
+            final decodedImage = frame.image;
+
+            try {
+                final pixelData = await decodedImage.toByteData(
+                    format: ui.ImageByteFormat.rawRgba,
+                );
+
+                if(pixelData == null) {
+                    continue;
+                }
+
+                final rgba = pixelData.buffer.asUint8List(
+                    pixelData.offsetInBytes,
+                    pixelData.lengthInBytes,
+                );
+
+                // RGBA = four bytes per pixel. Alpha is the fourth byte.
+                for(
+                    int alphaIndex = 3;
+                    alphaIndex < rgba.length;
+                    alphaIndex += 4
+                ) {
+                    // Anything below fully opaque counts as transparency,
+                    // including semi-transparent antialiased pixels.
+                    if(rgba[alphaIndex] < 255) {
+                        return true;
+                    }
+                }
+            } finally {
+                decodedImage.dispose();
+            }
+        }
+    } catch (_) {
+        // An unsupported or malformed image should not break Browse.
+        return false;
+    } finally {
+        codec?.dispose();
+    }
+
+    return false;
+}
+
+Future<File> _createTransparencyPreservingThumbnail({
+    required File input,
+    required String outputPath,
+}) async {
+    ui.Codec? codec;
+
+    try {
+        final decodedCodec = await ui.instantiateImageCodec(
+            await input.readAsBytes(),
+            targetWidth: 768,
+            allowUpscaling: false,
+        );
+
+        codec = decodedCodec;
+
+        // Like the old thumbnail system, animated files get a static gallery
+        // thumbnail. Unlike JPEG, this PNG thumbnail retains alpha.
+        final frame = await decodedCodec.getNextFrame();
+
+        try {
+            final pngData = await frame.image.toByteData(
+                format: ui.ImageByteFormat.png,
+            );
+
+            if(pngData == null) {
+                throw 'Could not encode transparent thumbnail';
+            }
+
+            return await File(outputPath).writeAsBytes(
+                pngData.buffer.asUint8List(
+                    pngData.offsetInBytes,
+                    pngData.lengthInBytes,
+                ),
+                flush: true,
+            );
+        } finally {
+            frame.image.dispose();
+        }
+    } finally {
+        codec?.dispose();
+    }
+}
 
 Future<Directory> obtainThumbnailDirectory() async {
     final String booruPath = (await getCurrentBooru()).path;
@@ -21,17 +162,38 @@ Future<Directory> obtainThumbnailDirectory() async {
 
 Future<File> getImageThumbnail(BooruImage image) async {
     final filename = image.filename;
+    final sourceFile = image.getImage();
     final thumbDir = await obtainThumbnailDirectory();
-    
-    File thumbnailFile = File("${p.join(thumbDir.path, p.basenameWithoutExtension(filename))}.jpg");
-    if(await thumbnailFile.exists()) return thumbnailFile;
+
+    final hasTransparency = await imageHasTransparency(sourceFile);
+
+    // JPEG remains appropriate for ordinary opaque artwork.
+    // Anything containing alpha receives a PNG thumbnail instead.
+    final extension = hasTransparency ? '.png' : '.jpg';
+
+    final thumbnailFile = File(
+        '${p.join(
+            thumbDir.path,
+            p.basenameWithoutExtension(filename),
+        )}$extension'
+    );
+
+    if(await thumbnailFile.exists()) {
+        return thumbnailFile;
+    }
 
     debugPrint("Compressing $filename");
 
-    final thumbnail = await createThumbnail(
-        input: image.getImage(),
-        outputPath: thumbnailFile.absolute.path
-    );
+    final thumbnail = hasTransparency
+        ? await _createTransparencyPreservingThumbnail(
+            input: sourceFile,
+            outputPath: thumbnailFile.absolute.path,
+        )
+        : await createThumbnail(
+            input: sourceFile,
+            outputPath: thumbnailFile.absolute.path,
+        );
+
     debugPrint("Obtained ${p.basename(thumbnailFile.path)}");
 
     return thumbnail;
